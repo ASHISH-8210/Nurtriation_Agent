@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NutriMind User Profile",
+  "type": "object",
+  "required": ["user_id", "created_at"],
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Unique identifier (hashed email or UUID)"
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+
+    "demographics": {
+      "type": "object",
+      "properties": {
+        "age": { "type": "integer", "minimum": 13, "maximum": 120 },
+        "sex": { "type": "string", "enum": ["male", "female", "other", "prefer_not_to_say"] },
+        "height_cm": { "type": "number" },
+        "weight_kg": { "type": "number" },
+        "activity_level": {
+          "type": "string",
+          "enum": ["sedentary", "lightly_active", "moderately_active", "very_active", "extra_active"]
+        }
+      }
+    },
+
+    "health_goals": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "weight_loss", "weight_gain", "muscle_gain", "maintain_weight",
+          "manage_blood_sugar", "lower_cholesterol", "reduce_blood_pressure",
+          "improve_gut_health", "general_wellness", "sports_performance"
+        ]
+      }
+    },
+
+    "medical_conditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "type2_diabetes", "type1_diabetes", "prediabetes",
+          "hypertension", "hypercholesterolemia",
+          "pcos", "hypothyroidism", "hyperthyroidism",
+          "celiac_disease", "ibs", "crohns_disease",
+          "kidney_disease", "gout", "osteoporosis",
+          "anemia", "lactose_intolerance", "none"
+        ]
+      }
+    },
+
+    "allergies": {
+      "type": "array",
+      "description": "IgE-mediated food allergies — hard block on any recommendation",
+      "items": {
+        "type": "string",
+        "enum": [
+          "peanuts", "tree_nuts", "milk", "eggs", "fish", "shellfish",
+          "wheat", "soy", "sesame", "mustard", "sulphites", "lupin", "molluscs"
+        ]
+      }
+    },
+
+    "intolerances": {
+      "type": "array",
+      "description": "Non-IgE intolerances — soft preference, noted in explanations",
+      "items": { "type": "string" }
+    },
+
+    "dietary_pattern": {
+      "type": "string",
+      "enum": [
+        "omnivore", "vegetarian", "vegan", "pescatarian",
+        "halal", "kosher", "jain", "keto", "paleo",
+        "low_fodmap", "dash", "mediterranean"
+      ]
+    },
+
+    "cuisine_preferences": {
+      "type": "array",
+      "description": "Preferred cuisine styles",
+      "items": { "type": "string" }
+    },
+
+    "disliked_foods": {
+      "type": "array",
+      "description": "Foods the user has rated 1–2 or explicitly excluded",
+      "items": { "type": "string" }
+    },
+
+    "budget_usd_per_day": {
+      "type": "number",
+      "description": "Daily food budget in USD"
+    },
+
+    "calorie_target": {
+      "type": "integer",
+      "description": "Daily calorie target in kcal. Computed by agent if not set."
+    },
+
+    "macro_targets": {
+      "type": "object",
+      "properties": {
+        "protein_g": { "type": "number" },
+        "carbs_g": { "type": "number" },
+        "fat_g": { "type": "number" },
+        "fiber_g": { "type": "number" }
+      }
+    },
+
+    "fitness_routine": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "frequency_per_week": { "type": "integer" },
+        "duration_minutes": { "type": "integer" },
+        "timing": { "type": "string", "enum": ["morning", "afternoon", "evening", "variable"] }
+      }
+    },
+
+    "feedback_summary": {
+      "type": "object",
+      "description": "Aggregated preference signals from log_feedback calls",
+      "properties": {
+        "avg_rating": { "type": "number" },
+        "total_meals_rated": { "type": "integer" },
+        "preferred_ingredients": { "type": "array", "items": { "type": "string" } },
+        "avoided_ingredients": { "type": "array", "items": { "type": "string" } },
+        "reported_symptoms": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

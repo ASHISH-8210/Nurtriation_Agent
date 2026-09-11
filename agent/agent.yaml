@@ -1,0 +1,279 @@
+apiVersion: wx-orchestrate/v1
+kind: Agent
+metadata:
+  name: nutrimind
+  display_name: "NutriMind — AI Nutrition Assistant"
+  description: >
+    Personalized AI nutrition assistant powered by IBM Granite.
+    Generates dynamic meal plans, explains food recommendations,
+    analyzes food images, and adapts to user feedback over time.
+  version: "1.0.0"
+  tags:
+    - nutrition
+    - health
+    - wellness
+    - meal-planning
+
+  # ── Live deployment coordinates ──────────────────────────────────────────
+  orchestrate:
+    host_url: "https://au-syd.watson-orchestrate.cloud.ibm.com"
+    region: au-syd
+    deployment_platform: ibmcloud
+    crn: "crn:v1:bluemix:public:watsonx-orchestrate:au-syd:a/aab8caee15fc49d6851636b85da74c1d:2cbd20fb-4e07-48e4-b81c-3902f34018fb::"
+    account_id: "aab8caee15fc49d6851636b85da74c1d"
+    instance_id: "2cbd20fb-4e07-48e4-b81c-3902f34018fb"
+    agent_id: "c7225708-c2da-45be-a606-2f9037b55bec"
+
+spec:
+  model:
+    provider: watsonx
+    model_id: ibm/granite-3-8b-instruct
+    parameters:
+      max_new_tokens: 2048
+      temperature: 0.3          # Lower temp = more consistent nutrition facts
+      top_p: 0.9
+      repetition_penalty: 1.1
+      stop_sequences: ["<|endoftext|>"]
+
+  system_prompt: |
+    You are NutriMind, a personalized AI nutrition assistant built on IBM Granite.
+
+    ## Your Identity
+    You deliver evidence-based, culturally sensitive, and medically aware nutrition
+    guidance. You generate structured meal plans, explain WHY each food choice fits
+    this specific user, and adapt over time based on their feedback.
+
+    ## Core Principles
+    1. ALWAYS call get_user_profile first to hydrate the user's health context before
+       making any recommendation.
+    2. ALWAYS ground macro/micronutrient claims in data retrieved from get_nutrition_data
+       or the RAG context block — never hallucinate nutrition numbers.
+    3. ALWAYS explain WHY a food is recommended for this specific user (their condition,
+       goal, or preference), not just WHAT to eat.
+    4. NEVER recommend a food that appears in the user's allergy or intolerance list.
+       If a conflict is detected, say so explicitly and suggest a safe alternative.
+    5. ALWAYS present meal plans as structured JSON wrapped in a markdown code block
+       so downstream systems can parse them.
+
+    ## Safety Escalation — Mandatory Hard Rules
+    If any of the following are detected, respond ONLY with the escalation message
+    and DO NOT generate a meal plan or food recommendation:
+    - User requests < 800 kcal/day total
+    - User mentions purging, laxatives, or extreme restriction behaviors
+    - User asks for nutrition advice during active cancer treatment or dialysis
+    - User asks about interactions between specific medications and foods
+      (redirect to pharmacist/physician, but you may explain general food–drug
+       interaction principles)
+    - Signs consistent with an eating disorder (obsessive calorie counting, fear
+       of all carbs/fat, binge-purge language)
+
+    Escalation message template:
+    "I can see this situation needs personalized clinical guidance that goes beyond
+    what I can safely provide. Please consult a registered dietician or your
+    healthcare provider. I'm happy to help with general wellness nutrition once
+    you have clinical clearance."
+
+    ## Cultural & Religious Dietary Rules (enforce strictly)
+    - Halal: no pork, no alcohol in any form including cooking wine
+    - Jain: no root vegetables (onion, garlic, potato, carrot, beetroot), no meat/fish/egg
+    - Kosher: no shellfish, no mixing of meat and dairy
+    - Vegan: no animal products including honey
+    - Vegetarian: no meat/fish, eggs/dairy allowed unless ovo-lacto is false in profile
+
+    ## Output Format for Meal Plans
+    Always return a JSON structure inside a ```json block, followed by a plain-language
+    "Why This Plan Works For You" section in prose.
+
+    ## Tone
+    Warm, encouraging, non-judgmental. Acknowledge cultural food traditions positively.
+    Never shame food choices. Frame all advice as options, not commands.
+
+  tools:
+    - name: get_user_profile
+      description: >
+        Retrieve the stored profile for a user, including health goals, medical
+        conditions, allergies, dietary preferences, fitness routine, and feedback
+        history. Call this before any recommendation.
+      mcp_server: nutrimind-tools
+      input_schema:
+        type: object
+        properties:
+          user_id:
+            type: string
+            description: Unique user identifier
+        required: [user_id]
+
+    - name: update_user_profile
+      description: >
+        Persist changes to a user's profile — update preferences, log new conditions,
+        adjust calorie targets, or record learned dislikes from feedback.
+      mcp_server: nutrimind-tools
+      input_schema:
+        type: object
+        properties:
+          user_id:
+            type: string
+          delta:
+            type: object
+            description: >
+              Partial profile object with only the fields to update.
+              E.g. {"disliked_foods": ["broccoli"], "calorie_target": 1800}
+        required: [user_id, delta]
+
+    - name: analyze_food_image
+      description: >
+        Analyze a food photo or grocery label image using a Granite vision model.
+        Returns identified foods, estimated portion sizes, and approximate nutrition
+        content. Use this when the user uploads a photo of their meal or a food package.
+      mcp_server: nutrimind-tools
+      input_schema:
+        type: object
+        properties:
+          image_base64:
+            type: string
+            description: Base64-encoded image data (JPEG or PNG)
+          mime_type:
+            type: string
+            enum: [image/jpeg, image/png, image/webp]
+            default: image/jpeg
+          context_hint:
+            type: string
+            description: >
+              Optional hint about the image, e.g. "this is a restaurant plate"
+              or "this is a nutrition label"
+        required: [image_base64]
+
+    - name: get_nutrition_data
+      description: >
+        Look up detailed nutrition data for a specific food item from the USDA
+        FoodData Central database. Returns calories, macros, and key micronutrients
+        per 100g and per specified quantity.
+      mcp_server: nutrimind-tools
+      input_schema:
+        type: object
+        properties:
+          food_name:
+            type: string
+            description: Name of the food item, e.g. "brown rice", "chicken breast"
+          quantity_g:
+            type: number
+            description: Quantity in grams for per-serving calculation
+            default: 100
+        required: [food_name]
+
+    - name: generate_meal_plan
+      description: >
+        Generate a personalized daily or weekly meal plan. Internally retrieves the
+        user profile, runs RAG over the nutrition knowledge base, and uses Granite
+        to compose a structured plan with per-meal macros and explanations.
+        Always call get_user_profile before this tool to confirm you have current data.
+      mcp_server: nutrimind-tools
+      input_schema:
+        type: object
+        properties:
+          user_id:
+            type: string
+          plan_type:
+            type: string
+            enum: [daily, weekly]
+            default: daily
+          days:
+            type: integer
+            description: Number of days (1 for daily, 7 for weekly)
+            default: 1
+          special_instructions:
+            type: string
+            description: >
+              Any one-off instructions for this plan, e.g. "I have a dinner party
+              Saturday", "I'm traveling Monday–Wednesday"
+        required: [user_id]
+
+    - name: suggest_food_swap
+      description: >
+        Given a food item the user wants to replace, suggest 3 healthier or
+        condition-appropriate alternatives that respect all user constraints.
+        Includes a nutritional delta comparison and plain-language explanation.
+      mcp_server: nutrimind-tools
+      input_schema:
+        type: object
+        properties:
+          food_item:
+            type: string
+            description: The food the user wants to swap out
+          user_id:
+            type: string
+            description: Used to apply user constraints and medical conditions
+          swap_reason:
+            type: string
+            description: >
+              Why the user wants a swap, e.g. "too high in sodium",
+              "I'm tired of it", "not halal"
+        required: [food_item, user_id]
+
+    - name: log_feedback
+      description: >
+        Record user feedback on a meal or recommendation. Updates the persistent
+        feedback log and triggers preference learning in the user profile.
+        Call this whenever the user rates, skips, or comments on a meal.
+      mcp_server: nutrimind-tools
+      input_schema:
+        type: object
+        properties:
+          user_id:
+            type: string
+          meal_id:
+            type: string
+            description: >
+              Identifier for the meal plan item being rated.
+              Use the meal name if no ID is available.
+          rating:
+            type: integer
+            minimum: 1
+            maximum: 5
+            description: 1 = disliked, 3 = neutral, 5 = loved
+          notes:
+            type: string
+            description: Free-text comment from the user
+          symptoms_reported:
+            type: string
+            description: >
+              Any symptoms the user reports after eating, e.g. "bloating",
+              "energy crash", "felt great"
+        required: [user_id, meal_id, rating]
+
+  memory:
+    session:
+      enabled: true
+      type: in_context
+      max_turns: 20
+    long_term:
+      enabled: true
+      backend: cloudant
+      collection: nutrimind-sessions
+
+  knowledge_base:
+    enabled: true
+    index_path: "rag/nutrition.index"
+    metadata_path: "rag/metadata.jsonl"
+    embedding_model: ibm/slate-125m-english-rtrvr
+    top_k: 5
+    cos_bucket: nutrimind-rag
+
+  guardrails:
+    input_filters:
+      - type: pii_detection
+        action: redact
+    output_filters:
+      - type: allergy_conflict_check
+        action: block_and_explain
+      - type: medical_escalation_check
+        action: replace_with_escalation_message
+
+  mcp_servers:
+    - name: nutrimind-tools
+      transport: streamable_http
+      url: "${MCP_SERVER_URL}"
+      auth:
+        type: api_key
+        header: X-NutriMind-Key
+        value: "${MCP_SERVER_API_KEY}"

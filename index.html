@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriMind — AI-Powered Nutritionist (IBM Granite)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="navbar">
+    <a href="/" class="nav-brand">
+      <div class="brand-icon">🥗</div>
+      <div class="brand-titles">
+        <span class="brand-name">NutriMind AI</span>
+        <span class="brand-tagline">Clinical & Evidence-Based Nutrition Assistant</span>
+      </div>
+    </a>
+
+    <div class="nav-actions">
+      <div class="model-badge">
+        <span class="pulse-dot"></span>
+        <span>IBM Granite 3-8b-instruct</span>
+      </div>
+
+      <button id="btnOpenProfile" class="btn-profile" title="Configure health parameters and dietary preferences">
+        <span>👤</span>
+        <span id="userProfileSummary">Alex (Vegetarian)</span>
+        <span>⚙️</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Application Workspace -->
+  <main class="app-container">
+
+    <!-- Left Workspace: Chat Interface & Assistant -->
+    <section class="main-workspace">
+      
+      <!-- Active User Profile Badges -->
+      <div class="profile-banner">
+        <div id="profilePills" class="profile-pills">
+          <!-- Populated dynamically via JS -->
+          <span class="profile-pill highlight">🥗 VEGETARIAN</span>
+          <span class="profile-pill">🎯 1600 kcal/day</span>
+          <span class="profile-pill">🩺 Type 2 Diabetes</span>
+          <span class="profile-pill danger">🚫 No Peanuts</span>
+        </div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">
+          RAG + USDA Grounded · Lite Plan Safe
+        </div>
+      </div>
+
+      <!-- Quick Suggestion Prompts -->
+      <div class="suggestions-bar">
+        <button class="suggestion-chip" data-prompt="Create a weekly meal plan for weight loss with Type 2 diabetes">
+          <span>📋</span> Weekly Diabetes Plan
+        </button>
+        <button class="suggestion-chip" data-prompt="Suggest a healthy swap for white rice that fits a low-GI diet">
+          <span>🔄</span> Swap for White Rice
+        </button>
+        <button class="suggestion-chip" data-prompt="Can you add chicken satay with peanut sauce to my meal plan?">
+          <span>⚠️</span> Peanut Allergy Check
+        </button>
+        <button class="suggestion-chip" data-prompt="What's for lunch and why is that good for my blood sugar?">
+          <span>🩺</span> Blood Sugar Analysis
+        </button>
+        <button class="suggestion-chip" data-prompt="What is the protein, fiber, and calorie count in 100g quinoa?">
+          <span>🔍</span> USDA Quinoa Lookup
+        </button>
+      </div>
+
+      <!-- Chat History -->
+      <div id="chatHistory" class="chat-history">
+        <!-- Initial AI greeting message -->
+        <div class="message-row assistant">
+          <div class="message-avatar">🥗</div>
+          <div class="message-bubble">
+            <div class="tool-tag">⚡ System: IBM Granite Ready</div>
+            <p>Welcome to <strong>NutriMind</strong>! I'm your personalized AI Nutrition Assistant powered by <strong>IBM Granite</strong> and grounded in <strong>USDA FoodData Central</strong> and clinical guidelines.</p>
+            <p>I have preloaded your profile: <strong>Vegetarian</strong>, <strong>Type 2 Diabetes management</strong>, and active <strong>Peanut Allergy Guard</strong>.</p>
+            <p>How can I assist your nutrition journey today? You can ask me to generate meals, analyze nutritional trade-offs, swap ingredients, or upload a plate photo!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Input Area -->
+      <div class="chat-input-area">
+        <div class="input-container">
+          <button id="btnUpload" class="action-btn" title="Upload food photo for Granite Vision analysis">
+            📷
+          </button>
+          <input type="file" id="imageUploadInput" accept="image/*" style="display:none;" />
+          
+          <button id="btnVoice" class="action-btn" title="Voice input (Watson Speech to Text)">
+            🎙️
+          </button>
+
+          <input 
+            type="text" 
+            id="chatInput" 
+            class="chat-input" 
+            placeholder="Ask NutriMind about meal plans, swaps, nutrition facts, or dietary guidance..." 
+            autocomplete="off"
+          />
+
+          <button id="btnSend" class="action-btn btn-send" title="Send message">
+            ➤
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Right Sidebar: Active Meal Plan & Live Tools -->
+    <aside class="sidebar-panel">
+
+      <!-- Today's Macro Budget & Meal Plan Card -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>📊</span> Daily Macro Target
+          </div>
+          <span style="font-size:0.75rem; color:var(--text-muted);">Day 1 Target</span>
+        </div>
+
+        <div class="macro-grid">
+          <div class="macro-box">
+            <div class="macro-label">Calories</div>
+            <div id="calVal" class="macro-val">1598</div>
+            <div class="macro-bar"><div id="calFill" class="macro-fill" style="width: 100%;"></div></div>
+          </div>
+          <div class="macro-box">
+            <div class="macro-label">Protein</div>
+            <div id="proteinVal" class="macro-val">91g</div>
+            <div class="macro-bar"><div id="proteinFill" class="macro-fill" style="width: 100%;"></div></div>
+          </div>
+          <div class="macro-box">
+            <div class="macro-label">Carbohydrates</div>
+            <div id="carbsVal" class="macro-val">158g</div>
+            <div class="macro-bar"><div id="carbsFill" class="macro-fill" style="width: 98%;"></div></div>
+          </div>
+          <div class="macro-box">
+            <div class="macro-label">Healthy Fat</div>
+            <div id="fatVal" class="macro-val">49g</div>
+            <div class="macro-bar"><div id="fatFill" class="macro-fill" style="width: 98%;"></div></div>
+          </div>
+        </div>
+
+        <div class="panel-header" style="margin-top:14px; margin-bottom:8px;">
+          <div class="panel-title" style="font-size:0.85rem;">
+            <span>🍽️</span> Planned Meals
+          </div>
+          <span style="font-size:0.72rem; color:var(--accent-primary-hover); font-weight:600;">Click to inquire</span>
+        </div>
+
+        <div id="mealItemsList" class="meal-items-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Quick USDA FoodData Central Search Card -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>🔍</span> USDA Food Explorer
+          </div>
+          <span style="font-size:0.72rem; color:var(--badge-text);">Live API</span>
+        </div>
+
+        <div class="search-input-wrap">
+          <input type="text" id="searchNutritionInput" class="search-input" placeholder="e.g. brown rice, salmon, chia" />
+          <button id="btnSearch" class="search-btn">Search</button>
+        </div>
+
+        <div id="searchResults" class="search-results">
+          <!-- Search results dynamically rendered here -->
+          <div style="font-size:0.75rem; color:var(--text-muted);">
+            Type an ingredient to inspect verified USDA calories, protein, carbs, and fiber.
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- Health Profile & Allergen Drawer / Modal -->
+  <div id="modalProfile" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ Health Profile & Dietary Settings</h3>
+        <button id="btnCloseModal" style="background:transparent; border:none; color:var(--text-muted); font-size:1.2rem; cursor:pointer;">✕</button>
+      </div>
+
+      <form id="formProfile">
+        <div class="form-group">
+          <label class="form-label" for="inputName">Display Name</label>
+          <input type="text" id="inputName" class="form-control" value="Alex" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inputDiet">Dietary Pattern</label>
+          <select id="inputDiet" class="form-control">
+            <option value="vegetarian">Vegetarian (Ovo-Lacto)</option>
+            <option value="vegan">Vegan (Strict 100% Plant-Based)</option>
+            <option value="jain">Jain (No root vegetables, strict lacto)</option>
+            <option value="halal">Halal (Strict Halal Meat, No Alcohol)</option>
+            <option value="kosher">Kosher (Kosher Certified, No Dairy+Meat mixing)</option>
+            <option value="omnivore">Omnivore (Balanced)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inputCalories">Daily Calorie Target (kcal/day)</label>
+          <input type="number" id="inputCalories" class="form-control" value="1600" min="800" max="4500" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inputConditions">Medical Conditions (comma-separated)</label>
+          <input type="text" id="inputConditions" class="form-control" value="type2_diabetes, hypertension" placeholder="e.g. type2_diabetes, pcos" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="inputAllergies">Allergens to Guard (comma-separated)</label>
+          <input type="text" id="inputAllergies" class="form-control" value="peanuts, lactose_intolerance" placeholder="e.g. peanuts, tree_nuts, shellfish, milk" />
+        </div>
+
+        <button type="submit" class="btn-primary">Save Profile & Recalibrate AI</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

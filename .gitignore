@@ -1,0 +1,58 @@
+﻿# -- Environment & Secrets ----------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# -- Python -------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+wheels/
+
+# -- Virtual environments -----------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# -- RAG artefacts (generated -- do not commit large binaries) ----------------
+rag/nutrition.index
+rag/metadata.jsonl
+rag/sources/*.csv
+rag/sources/*.pdf
+
+# -- User data & local state --------------------------------------------------
+data/
+data/*.json
+
+# -- IDE / editor -------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# -- Logs ---------------------------------------------------------------------
+*.log
+logs/
+
+# -- Test & coverage artefacts ------------------------------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# -- Notebook checkpoints -----------------------------------------------------
+.ipynb_checkpoints/
+
+# -- Mypy / Pyright -----------------------------------------------------------
+.mypy_cache/
+.pyright/
